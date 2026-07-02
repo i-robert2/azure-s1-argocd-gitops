@@ -22,8 +22,8 @@ spec:
             - name: acr
               api_url: https://acrm1devsdc001.azurecr.io
               prefix: acrm1devsdc001.azurecr.io
-              credentials: pullsecret:argocd/acr-helm
-              ping: yes
+              credentials: secret:argocd/acr-creds#creds
+              ping: no
         # Identity used for the git write-back commits.
         gitCommitUser: argocd-image-updater
         gitCommitMail: argocd-image-updater@users.noreply.github.com
