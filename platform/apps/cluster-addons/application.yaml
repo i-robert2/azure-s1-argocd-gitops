@@ -53,18 +53,18 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
-  # cert-manager's cainjector writes the webhook caBundle at runtime — ignore it
-  # so Argo doesn't report perpetual drift.
+  # cert-manager's cainjector writes the webhook caBundle at runtime; ignore the
+  # fields it manages so Argo doesn't report perpetual drift.
   ignoreDifferences:
     - group: admissionregistration.k8s.io
       kind: ValidatingWebhookConfiguration
-      jqPathExpressions: [".webhooks[].clientConfig.caBundle"]
+      managedFieldsManagers: [cert-manager-cainjector]
     - group: admissionregistration.k8s.io
       kind: MutatingWebhookConfiguration
-      jqPathExpressions: [".webhooks[].clientConfig.caBundle"]
+      managedFieldsManagers: [cert-manager-cainjector]
   syncPolicy:
     automated: { prune: true, selfHeal: true }
-    syncOptions: [CreateNamespace=true]
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
 ---
 # The Let's Encrypt ClusterIssuer (raw manifest in this repo). Sync-wave -1 so it
 # applies AFTER cert-manager's CRDs exist but BEFORE app ingresses request certs.
