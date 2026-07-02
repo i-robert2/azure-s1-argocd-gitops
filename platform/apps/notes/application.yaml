@@ -24,7 +24,7 @@ metadata:
 spec:
   project: platform
   source:
-    repoURL: oci://acrm1devsdc001.azurecr.io/charts
+    repoURL: acrm1devsdc001.azurecr.io/charts
     chart: notes
     targetRevision: 0.1.0
     helm:
