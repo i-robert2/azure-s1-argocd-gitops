@@ -1,0 +1,61 @@
+# Argo CD Helm values. TLS is terminated at ingress-nginx, so the server runs
+# insecure behind it. Hostname + Entra OIDC IDs are injected at install time by
+# rendering REPLACE_* placeholders (see README "Setup").
+global:
+  # keep Argo's own footprint small on the shared M1 nodes
+  affinity:
+    podAntiAffinity: soft
+
+configs:
+  params:
+    server.insecure: true # ingress-nginx terminates TLS
+
+  cm:
+    url: https://REPLACE_ARGOCD_HOST
+    # Entra ID OIDC SSO is layered on later via argocd/oidc-values.yaml (a helm
+    # upgrade with the real tenant/client-id + a client secret in argocd-secret).
+
+  rbac:
+    # Group-based RBAC. The admin Entra group can do anything; the viewer group
+    # can read Applications but NOT sync them. Default (unmatched users) = viewer.
+    policy.default: role:viewer
+    scopes: "[groups]"
+    policy.csv: |
+      p, role:viewer, applications, get, */*, allow
+      p, role:viewer, applications, sync, */*, deny
+      p, role:admin,  applications, *,    */*, allow
+      p, role:admin,  clusters, *, */*, allow
+      p, role:admin,  repositories, *, */*, allow
+      g, REPLACE_ADMIN_GROUP,  role:admin
+      g, REPLACE_VIEWER_GROUP, role:viewer
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hostname: REPLACE_ARGOCD_HOST
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/backend-protocol: HTTP
+    tls: true
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 300m, memory: 256Mi }
+
+# Keep the rest lean for a single-node-ish shared cluster.
+controller:
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+repoServer:
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 300m, memory: 256Mi }
+applicationSet:
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { cpu: 100m, memory: 128Mi }
+redis:
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { cpu: 100m, memory: 128Mi }

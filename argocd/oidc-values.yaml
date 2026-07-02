@@ -1,0 +1,28 @@
+# Entra ID OIDC SSO overlay for Argo CD. Applied in the SSO phase as an extra
+# helm values file (rendered with real IDs). The client secret is NOT here — it
+# lives only in the argocd-secret key oidc.azuread.clientSecret.
+#
+#   helm upgrade argocd argo/argo-cd -n argocd \
+#     -f argocd/values.rendered.yaml -f argocd/oidc-values.rendered.yaml
+configs:
+  cm:
+    oidc.config: |
+      name: Entra ID
+      issuer: https://login.microsoftonline.com/REPLACE_TENANT_ID/v2.0
+      clientID: REPLACE_ARGOCD_CLIENT_ID
+      clientSecret: $oidc.azuread.clientSecret
+      requestedScopes: ["openid", "profile", "email", "groups"]
+      requestedIDTokenClaims:
+        groups:
+          essential: true
+  rbac:
+    policy.default: role:viewer
+    scopes: "[groups]"
+    policy.csv: |
+      p, role:viewer, applications, get, */*, allow
+      p, role:viewer, applications, sync, */*, deny
+      p, role:admin,  applications, *,    */*, allow
+      p, role:admin,  clusters, *, */*, allow
+      p, role:admin,  repositories, *, */*, allow
+      g, REPLACE_ADMIN_GROUP,  role:admin
+      g, REPLACE_VIEWER_GROUP, role:viewer

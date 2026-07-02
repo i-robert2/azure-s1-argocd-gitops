@@ -1,0 +1,35 @@
+# AppProject — the guardrail. Argo may only deploy from these source repos,
+# to these destinations, using these resource kinds. Everything the platform
+# needs is whitelisted; anything else is denied by default.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: "Platform tier — delivered via GitOps"
+  sourceRepos:
+    - https://github.com/i-robert2/azure-s1-argocd-gitops.git
+    - oci://acrm1devsdc001.azurecr.io/charts # notes OCI chart
+    - https://kubernetes.github.io/ingress-nginx
+    - https://charts.jetstack.io
+    - https://prometheus-community.github.io/helm-charts
+    - https://argoproj.github.io/argo-helm
+  destinations:
+    - namespace: "*"
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  # The viewer role can inspect Apps in this project but never sync/rollback.
+  roles:
+    - name: viewer
+      description: read-only access to platform Applications
+      policies:
+        - p, proj:platform:viewer, applications, get, platform/*, allow
+        - p, proj:platform:viewer, applications, sync, platform/*, deny

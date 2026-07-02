@@ -1,0 +1,53 @@
+# The notes app, delivered from an OCI Helm chart in ACR. Argo CD Image Updater
+# watches the two images and, on a new tag, writes the bump to a separate branch
+# (image-updater) so it lands as a reviewable PR into main (which Argo watches).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: notes
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    # --- Argo CD Image Updater ---
+    argocd-image-updater.argoproj.io/image-list: >-
+      api=acrm1devsdc001.azurecr.io/notes-api,
+      frontend=acrm1devsdc001.azurecr.io/notes-frontend
+    argocd-image-updater.argoproj.io/api.update-strategy: semver
+    argocd-image-updater.argoproj.io/frontend.update-strategy: semver
+    argocd-image-updater.argoproj.io/api.allow-tags: "regexp:^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    argocd-image-updater.argoproj.io/frontend.allow-tags: "regexp:^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    argocd-image-updater.argoproj.io/api.helm.image-tag: api.tag
+    argocd-image-updater.argoproj.io/frontend.helm.image-tag: frontend.tag
+    argocd-image-updater.argoproj.io/write-back-method: git:secret:argocd/git-creds
+    # base:write branch -> commits land on image-updater, PR'd into main (Argo watches main)
+    argocd-image-updater.argoproj.io/git-branch: main:image-updater
+spec:
+  project: platform
+  source:
+    repoURL: oci://acrm1devsdc001.azurecr.io/charts
+    chart: notes
+    targetRevision: 0.1.0
+    helm:
+      values: |
+        image:
+          repository: acrm1devsdc001.azurecr.io
+        api:
+          tag: "1.0.0"
+        frontend:
+          tag: "1.0.0"
+        postgres:
+          host: pg-m1-dev-sdc-001.postgres.database.azure.com
+          database: appdb
+          user: pgadmin
+        ingress:
+          host: app.4-166-46-137.sslip.io
+        keyVault:
+          name: kv-m1-dev-sdc-001
+          tenantId: 60495a65-ce83-4dc1-9c1a-a5cc198d0a96
+        workloadIdentityClientId: 8a158e39-2aff-4b8e-a7a2-7fe90eaec437
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: app
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true]

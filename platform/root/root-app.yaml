@@ -1,0 +1,28 @@
+# App of Apps. This single Application renders every child Application found
+# under platform/apps/. Apply it once to bootstrap the whole platform; after
+# that, adding an app = commit a new apps/<name>/application.yaml.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/i-robert2/azure-s1-argocd-gitops.git
+    path: platform/apps
+    targetRevision: HEAD
+    directory:
+      recurse: true
+      include: "**/application.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

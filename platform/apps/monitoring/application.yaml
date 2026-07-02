@@ -1,0 +1,52 @@
+# kube-prometheus-stack (Prometheus + Grafana + Alertmanager), same as M3 but
+# now delivered by Argo. Grafana is exposed via ingress-nginx + Let's Encrypt.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: platform
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 65.5.1
+    helm:
+      values: |
+        grafana:
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-prod
+            hosts: [grafana.4-166-46-137.sslip.io]
+            tls:
+              - secretName: grafana-tls
+                hosts: [grafana.4-166-46-137.sslip.io]
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+        prometheus:
+          prometheusSpec:
+            retention: 5d
+            resources:
+              requests: { cpu: 100m, memory: 512Mi }
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: managed-csi
+                  accessModes: [ReadWriteOnce]
+                  resources:
+                    requests:
+                      storage: 8Gi
+        alertmanager:
+          alertmanagerSpec:
+            resources:
+              requests: { cpu: 25m, memory: 64Mi }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
