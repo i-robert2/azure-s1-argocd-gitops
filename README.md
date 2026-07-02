@@ -161,6 +161,22 @@ argocd app list        # root spawns notes / monitoring / cluster-addons / image
 
 ---
 
+## Issues we hit (and the fixes)
+
+Real problems encountered bringing this up end-to-end:
+
+| # | Symptom | Root cause | Fix |
+|---|---------|-----------|-----|
+| 1 | `notes` app: `cannot get digest ... 401` | Argo CD's OCI Helm `repoURL` must **not** carry the `oci://` scheme — with it, Argo mis-parsed the repo | Use the bare `acrm1devsdc001.azurecr.io/charts` in the app + AppProject + repo secret |
+| 2 | Image Updater can't write tags to a pure-OCI-chart app | Git write-back needs a **git-tracked** values file, not chart-inline values | Refactor `notes` to a **multi-source** app: OCI chart + `$values` git ref → `platform/apps/notes/values.yaml` |
+| 3 | cert-manager + monitoring stuck `OutOfSync` (empty diff) | cert-manager's cainjector writes the webhook `caBundle`; the prometheus-operator mutates its own CRs — Argo sees controller-owned fields as drift | `ignoreDifferences` (managedFieldsManagers) + `ServerSideApply`. **Still shows OutOfSync in this version** — a known cosmetic Argo behavior; both apps are Healthy and functional |
+| 4 | Image Updater: `denied ... authentication required` listing ACR tags | ACR's `/v2/tags/list` requires the **`metadata_read`** scope (not the standard `pull`); Image Updater's request resolves to anonymous/`pull` → denied. Scoped token, `secret:`/`pullsecret:` creds, and even ACR **anonymous pull** (after a Basic→Standard SKU bump) all failed to lift it | **Unresolved** — a documented Argo CD Image Updater ↔ ACR friction point. Image Updater is installed and fully wired (multi-source values, SSH deploy-key write-back to a PR branch); only the ACR tag-poll is blocked. Registries with a standards-compliant `tags/list` (GHCR, Docker Hub, Quay) work out of the box |
+| 5 | Browser: `ERR_SSL_VERSION_OR_CIPHER_MISMATCH` on the sslip.io host | **Client-side** TLS interception (AV/proxy) — the ingress serves a valid Let's Encrypt cert and negotiates TLS 1.2 **and** 1.3 fine from `curl`/other clients | Use an incognito window / disable AV HTTPS scanning. Server side is unaffected |
+
+> Takeaways: Argo OCI charts want a bare `repoURL`; Image Updater on a chart-source app needs a git values file (multi-source); and **Image Updater + Azure Container Registry** has a real tag-listing auth quirk worth knowing before you pick it for an ACR-only shop.
+
+---
+
 ## Cost
 
 Argo CD runs on M1's existing nodes (controller + repo-server + redis + UI, ~3–4 small Pods, CPU/memory already paid for). ACR OCI chart storage is <0.01 €/mo; the Entra app registration is free. **~0–2 €/mo added on top of M1.** A deploy-verify-destroy session is ~€2–3. `helm uninstall argocd -n argocd`, then `terraform destroy` returns spend to ~€0.
