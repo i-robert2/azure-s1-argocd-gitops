@@ -53,6 +53,15 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
+  # cert-manager's cainjector writes the webhook caBundle at runtime — ignore it
+  # so Argo doesn't report perpetual drift.
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions: [".webhooks[].clientConfig.caBundle"]
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions: [".webhooks[].clientConfig.caBundle"]
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions: [CreateNamespace=true]

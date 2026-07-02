@@ -47,6 +47,12 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
+  # The prometheus-operator continuously mutates its own CRs; ignore fields it
+  # manages so Argo doesn't flag them as drift (empty-diff OutOfSync).
+  ignoreDifferences:
+    - group: monitoring.coreos.com
+      kind: "*"
+      managedFieldsManagers: [prometheus-operator]
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions: [CreateNamespace=true, ServerSideApply=true]
