@@ -1,0 +1,19 @@
+# Git-tracked Helm values for the notes app (multi-source Application). Argo CD
+# Image Updater writes the api/frontend tag bumps into THIS file (on a separate
+# branch -> PR into main, which Argo watches).
+image:
+  repository: acrm1devsdc001.azurecr.io
+api:
+  tag: "1.0.0"
+frontend:
+  tag: "1.0.0"
+postgres:
+  host: pg-m1-dev-sdc-001.postgres.database.azure.com
+  database: appdb
+  user: pgadmin
+ingress:
+  host: app.4-166-46-137.sslip.io
+keyVault:
+  name: kv-m1-dev-sdc-001
+  tenantId: 60495a65-ce83-4dc1-9c1a-a5cc198d0a96
+workloadIdentityClientId: 8a158e39-2aff-4b8e-a7a2-7fe90eaec437
